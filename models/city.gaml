@@ -20,17 +20,18 @@ global {
 	
 	map<road, float> new_weights;
 	
-	float step <- 2 #s;
-	
 	int number_population <- 200;
 	
 	int current_min<- 0;
 	int current_hour<- 0;
 	int current_day<- 0;
-	list<inhabitant> character;
+
+	float step <- 5#minute;
 	
-	int inhabitant_infected <- 0;
-	
+	// date
+	date starting_date <- date([1980,1,2,7,40,0]);
+
+
 	/** Insert the global definitions, variables and actions here */
 	init{
 		create building from: buildings_shape_file with:(height:10);
@@ -96,18 +97,18 @@ global {
 			current_hour <- current_hour + 1;
 			
 			
-			if current_hour = 8{
-				ask inhabitant {
-					self.target <- (self.is_tested? self.home : self.company) + rnd ({20,20,0});
-				}
-			}
-				
-				
-			if current_hour = 18{
-				ask inhabitant {
-					self.target <- self.home+ rnd ({20,20,0});
-				}
-			}
+//			if current_hour = 8{
+//				ask inhabitant {
+//					self.target <- (self.is_tested? self.home : self.company) + rnd ({20,20,0});
+//				}
+//			}
+//				
+//				
+//			if current_hour = 18{
+//				ask inhabitant {
+//					self.target <- self.home+ rnd ({20,20,0});
+//				}
+//			}
 			
 			
 			if current_hour >= 24{
@@ -141,6 +142,19 @@ global {
 		}
 	}
 	
+	reflex write_sim_info {
+	
+		write cycle;
+		
+		write time;  // time = cyle * step
+		
+		write current_date;
+		
+		write "----------";
+	
+	}
+	
+	
 	
 	reflex update_weights when: every(10#s){
 		new_weights <- road as_map (each::each.shape.perimeter / each.speed_rate);
@@ -164,7 +178,7 @@ species inhabitant skills: [moving] { //skills are pre defined
 	float proba_leave <- 0.05;
 	
 	// this definition of speed surpersedes the one skill moving 
-	float speed <- 40 #km/#h;
+	float speed <- 1 #km/#h;
 	
 	// For virus
 	bool is_infected <- false;
@@ -193,18 +207,20 @@ species inhabitant skills: [moving] { //skills are pre defined
 //	}
 //	
 	
-	reflex move when: target != nil {
-//		do goto target: target on: road_network move_weights: new_weights; // on :))
-		path followed_path <- goto(target: target, on: road_network, move_weights: new_weights, return_path: true);
+	reflex move  {
 		
 		if is_infected and is_tested{
 			target <- home;
 		}
-//		else if location = company {
-//			target <- home;
-//		}else if location = home {
-//			target <- company;
-//		}
+		else if (current_date.hour#h + current_date.minute#minute >= 8#h and current_date.hour#h + current_date.minute#minute <= 17#h){
+			target <- company;		
+		}else{
+			target <- home;
+		}
+		
+		
+//		do goto target: target on: road_network move_weights: new_weights; // on :))
+		path followed_path <- goto(target: target, on: road_network, move_weights: new_weights, return_path: true);
 	}
 	
 	action virus_upgrade {
@@ -307,10 +323,6 @@ experiment traffic type: gui {
 			species road;
 			species inhabitant aspect: default;
 			
-			graphics timer{
-				draw ""+current_day + "Days " + current_hour + ":" + current_min 
-					font:font("Helveica", 48, #plain) at: {world.shape.width/2,world.shape.height,0} color:#black;
-			}
 			
 		}
 	    display "my_display" {
